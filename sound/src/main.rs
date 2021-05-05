@@ -1,7 +1,18 @@
+
+#[macro_use]
+extern crate serde_json;
+
+#[macro_use]
+extern crate handlebars;
+
+extern crate failure;
+
 use actix_web::{
     error, middleware, web, dev, guard,App, Error, HttpRequest, HttpResponse, HttpServer,
-    http::header,http::Method, http::StatusCode
+    http::header,http::Method, http::StatusCode,body::Body,Result
 };
+use actix_web::dev::ServiceResponse;
+use actix_web::middleware::errhandlers::{ErrorHandlerResponse, ErrorHandlers};
 use actix_files as fs;
 use actix_http::Response;
 
@@ -20,13 +31,27 @@ use std::cell::Cell;
 use std::sync::Mutex;
 use std::borrow::BorrowMut;
 
-
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::path::Path;
 use std::io::Read;
 mod parse_sound;
 use parse_sound::create_wav;
+use std::collections::HashMap;
+
+use handlebars::{Handlebars, HelperDef, RenderContext, Helper, Context, JsonRender, HelperResult, Output, RenderError,ScopedJson};
+
+static mut COUNTER: usize = 0;
+
+handlebars_helper!(new_tr_helper: |{max_elem: u64=3}| {unsafe{
+    if max_elem as usize==COUNTER {
+        COUNTER=0;
+        return Ok(Some(ScopedJson::Constant(&json!(false))));
+    }
+    COUNTER += 1;
+    return Ok(Some(ScopedJson::Constant(&json!(true))));
+}});
+
 
 #[derive(Fail, Debug)]
 enum MyError {
@@ -95,6 +120,178 @@ async fn get_image(item: web::Json<MyObj>, req: HttpRequest) ->  Result<&'static
 }*/
 
 
+
+async fn get_years_picture( req: HttpRequest) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json( GeneralPhotoVideo::get_all_years()))
+}
+use serde::Deserializer;
+#[derive(Default,Serialize,Deserialize)]
+struct RequestYear {
+    year: String,
+}
+
+const MAX_SIZE: usize = 262_144;
+async fn get_months_picture(  mut payload: web::Payload,req: HttpRequest) -> Result<HttpResponse> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(error::ErrorBadRequest("overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+   match serde_json::from_slice::<RequestYear>(&body){
+       Ok(e)=>{
+          return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json( GeneralPhotoVideo::get_months(e.year.clone())));
+       },
+       Err(e)=>{
+           return  Err(actix_web::error::ErrorBadGateway(e));
+       }
+   }
+}
+
+#[derive(Default,Serialize,Deserialize)]
+struct RequestYearMonth {
+    year: String,
+    month: String
+}
+async fn get_days_picture(  mut payload: web::Payload,req: HttpRequest) -> Result<HttpResponse> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(error::ErrorBadRequest("overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    match serde_json::from_slice::<RequestYearMonth>(&body){
+        Ok(e)=>{
+            return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json( GeneralPhotoVideo::get_days(e.year.clone(),e.month.clone()  )));
+        },
+        Err(e)=>{
+            return  Err(actix_web::error::ErrorBadGateway(e));
+        }
+    }
+}
+
+#[derive(Default,Serialize,Deserialize)]
+struct RequestYearMonthDay {
+    year: String,
+    month: String,
+    day: String
+}
+async fn get_day_picture(  mut payload: web::Payload,req: HttpRequest) -> Result<HttpResponse> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(error::ErrorBadRequest("overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    match serde_json::from_slice::<RequestYearMonthDay>(&body){
+        Ok(e)=>{
+            return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json( GeneralPhotoVideo::get_day(e.year.clone(),e.month.clone(),e.day.clone()  )));
+        },
+        Err(e)=>{
+            return  Err(actix_web::error::ErrorBadGateway(e));
+        }
+    }
+}
+
+#[derive(Default,Serialize,Deserialize)]
+struct RequestYearMonthDayFile {
+    year: String,
+    month: String,
+    day: String,
+    file_name:String
+}
+async fn delete_picture(  mut payload: web::Payload,req: HttpRequest) -> Result<HttpResponse> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(error::ErrorBadRequest("overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    match serde_json::from_slice::<RequestYearMonthDayFile>(&body){
+        Ok(e)=>{
+            if let Some(_) = GeneralPhotoVideo::delete_picture(e.year.clone(),e.month.clone(),e.day.clone(),e.file_name.clone()){
+                return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*")
+                    .json( GeneralPhotoVideo::get_day(e.year.clone(),e.month.clone(),e.day.clone()  )));
+            }else{
+                return  Err(actix_web::error::ErrorBadGateway("Bad format file name"));
+            }
+
+        },
+        Err(e)=>{
+            return  Err(actix_web::error::ErrorBadGateway(e));
+        }
+    }
+}
+
+#[derive(Default,Serialize,Deserialize)]
+struct RequestSoundFile {
+    sound: String
+}
+async fn delete_sound(mut payload: web::Payload,req: HttpRequest)-> Result<HttpResponse> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(error::ErrorBadRequest("overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    match serde_json::from_slice::<RequestSoundFile>(&body){
+        Ok(e)=>{
+           if let Some(_) = GeneralSound::delete_sound(e.sound){
+               let gs = GeneralSound::new();
+               let gs_data:serde_json::Value = serde_json::to_value(gs).unwrap();
+               let data = json!(gs_data);
+               return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json(data));
+           }else{
+               return  Err(actix_web::error::ErrorBadGateway("Bad format file name"));
+           }
+        },
+        Err(e)=>{
+            return  Err(actix_web::error::ErrorBadGateway(e));
+        }
+    }
+}
+
+async fn get_sounds(req: HttpRequest)-> Result<HttpResponse> {
+    let gs = GeneralSound::new();
+    let gs_data:serde_json::Value = serde_json::to_value(gs).unwrap();
+    let data = json!(gs_data);
+    return Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json(data));
+}
+
+async fn get_last_picture( req: HttpRequest) -> Result<HttpResponse> {
+    let utc: DateTime<Utc> = Utc::now();
+    let year =  utc.format("%Y").to_string();
+    let month = utc.format("%m").to_string();
+    let day = utc.format("%d").to_string();
+    let mut pictures = GeneralPhotoVideo::get_day(year.clone(),month.clone(),day.clone());
+    pictures.sort();
+
+    let data = json!({
+          "year": year,
+          "month": month,
+          "day":day,
+          "picture":pictures.pop()
+  });
+    Ok(HttpResponse::Ok().header("Access-Control-Allow-Origin","*").json( data))
+}
+
+
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Log{
     msg:String,
@@ -118,7 +315,7 @@ async fn log( msg: web::Json<Log>,req: HttpRequest) ->  Result<&'static str, MyE
         .open("./log/log.txt")
         .unwrap();
 
-    let mut buff = format!("{}", format_args!("{} msg:{} type:{} ", utc.format("%Y-%m-%e-%H-%M-%S").to_string(),msg.msg,msg.r#type));
+    let mut buff = format!("{}", format_args!("{} msg:{} type:{} ", utc.format("%Y-%m-%d-%H-%M-%S").to_string(),msg.msg,msg.r#type));
     let mut buffer:&[u8] = buff.as_bytes();
     file.write(buffer);
 
@@ -286,8 +483,8 @@ async fn save_picture(mut payload: Multipart,req: HttpRequest) -> Result<HttpRes
         println!("save_file_test while");
         //let content_type = field.content_disposition().unwrap();
         //let filename = content_type.get_filename().unwrap();
-        let utc: DateTime<Utc> = Utc::now();
-        let filepath = format!("./picture/{}.jpg", utc.format("%Y-%m-%e-%H-%M-%S").to_string());
+
+        let filepath = GeneralPhotoVideo::get_new_filename();
 
         // File::create is blocking operation, use threadpool
         let mut f = web::block(|| std::fs::File::create(filepath))
@@ -315,9 +512,6 @@ async fn save_picture(mut payload: Multipart,req: HttpRequest) -> Result<HttpRes
 }
 
 
-
-
-
 // curl -F 'file=@/home/jeka/projects/atmega328_esp32/sound/sound/test.txt' -H  'Content-Type: multipart/form-data' -H 'Content-Length: 4096' -H 'Content-Disposition: attachment; filename="test.txt"'  http://192.168.0.106:4000/sound
 async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpResponse, Error> {
 
@@ -331,9 +525,8 @@ async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpRespon
 
     // let pl = split_payload(payload.borrow_mut()).await;
     // println!("bytes={:#?}", pl.0);
-    let utc: DateTime<Utc> = Utc::now();
-    let filepath = format!("./sound/{}.txt", utc.format("%Y-%m-%e-%H-%M-%S").to_string());
-    let file_out = String::from(&filepath);
+
+    let (filepath,file_out) = GeneralSound::get_new_filename();
     if let Ok(Some(mut field)) = payload.try_next().await {
         println!("save_file_test while");
         //let content_type = field.content_disposition().unwrap();
@@ -369,7 +562,8 @@ async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpRespon
     Ok(HttpResponse::Ok().into())
 }
 
-fn index() -> HttpResponse {
+
+/*fn index() -> HttpResponse {
     let html = r#"<html>
         <head><title>Upload Test</title></head>
         <body>
@@ -381,15 +575,400 @@ fn index() -> HttpResponse {
     </html>"#;
 
     HttpResponse::Ok().body(html)
+}*/
+
+#[derive(Serialize, Deserialize,Default,Debug)]
+struct GeneralSound{
+    sounds:Vec<String>
 }
 
+impl GeneralSound{
+    fn get_new_filename()->(String,String){
+        let utc: DateTime<Utc> = Utc::now();
+        (format!("./sound/{}.txt", utc.format("%Y-%m-%e-%H-%M-%S").to_string()).to_string(),
+         format!("./wav/{}.wav", utc.format("%Y-%m-%e-%H-%M-%S").to_string()).to_string())
+    }
+
+    fn delete_sound(sound:String)->Option<()>{
+        use regex::Regex;
+        if Regex::new(r"^\d{4}-\d{1,2}-\d{1,2}-\d{1,2}-\d{1,2}-\d{1,2}\.wav$").unwrap().is_match(&sound) {
+            std::fs::remove_file(format!("./wav/{}",sound));
+            return Some(());
+        }else{
+            return None;
+        }
+
+        return None;
+    }
+
+    fn new()->Self{
+        let mut result = vec![];
+        if let Ok(entries) = std::fs::read_dir(std::path::Path::new("./wav")) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                   result.push(entry.file_name().into_string().unwrap())
+                }
+            }
+        }
+        result.sort_by(|a, b| b.cmp(a));
+        GeneralSound{sounds: result}
+    }
+
+}
+
+#[derive(Serialize, Deserialize,Default,Debug)]
+struct GeneralPhotoVideo{
+    years:HashMap<String, Years>
+}
+
+#[derive(Serialize, Deserialize,Default,Debug)]
+struct Days{
+    day:String,
+    files:Vec<String>
+}
+#[derive(Serialize, Deserialize,Default,Debug)]
+struct Months{
+    month:String,
+    days:HashMap<String, Days>
+}
+#[derive(Serialize, Deserialize,Default,Debug)]
+struct Years{
+    year:String,
+    months:HashMap<String, Months>
+}
+
+impl GeneralPhotoVideo{
+    fn get_new_filename()->String{
+        let utc: DateTime<Utc> = Utc::now();
+        let year =  utc.format("%Y").to_string();
+        let month = utc.format("%m").to_string();
+        let day = utc.format("%d").to_string();
+
+        std::fs::create_dir_all(format!("./picture/{}/{}/{}",year.clone(),month.clone(),day.clone() )).unwrap();
+
+        let filepath = format!("./picture/{}/{}/{}/{}.jpg",year.clone(),month.clone(),day.clone(),utc.format("%H-%M-%S").to_string());
+        let file_out = String::from(&filepath);
+        file_out
+    }
+
+    fn delete_picture(year:String,month:String,day:String,file_name:String)->Option<()>{
+        use regex::Regex;
+        if let Ok(_) = year.parse::<i32>(){
+            if let Ok(_) = month.parse::<i32>(){
+                if let Ok(_) = day.parse::<i32>(){
+                    if Regex::new(r"^\d{1,2}-\d{1,2}-\d{1,2}\.jpg$").unwrap().is_match(&file_name) {
+                        std::fs::remove_file(format!("./picture/{}/{}/{}/{}",year,month,day,file_name));
+                        return Some(());
+                    }else{
+                        return None;
+                    }
+                }
+            }
+        }
+        return None;
+    }
+
+    fn get_all_years()->Vec<String>{
+        let mut result = vec![];
+        if let Ok(entries) = std::fs::read_dir(std::path::Path::new("./picture")) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    if entry.path().is_dir(){
+                        result.push(entry.file_name().into_string().unwrap())
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    fn get_months(year:String)->Vec<String>{
+       let mut result = vec![];
+        if let Ok(_) = year.parse::<i32>(){
+            if let Ok(entries) = std::fs::read_dir(std::path::Path::new("./picture")) {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        if entry.path().is_dir(){
+                            if entry.file_name().into_string().unwrap() == year {
+                                if let Ok(entries_months) = std::fs::read_dir(entry.path()) {
+                                    for entry_months in entries_months {
+                                        if let Ok(entry_months) = entry_months {
+                                            if entry_months.path().is_dir(){
+                                                result.push(entry_months.file_name().into_string().unwrap());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+       result
+    }
+
+    fn get_days(year:String,month:String)->Vec<String>{
+        let mut result = vec![];
+        if let Ok(_) = year.parse::<i32>() {
+            if let Ok(_) = month.parse::<i32>() {
+                if let Ok(entries) = std::fs::read_dir(std::path::Path::new("./picture")) {
+                    for entry in entries {
+                        if let Ok(entry) = entry {
+                            if entry.path().is_dir(){
+                                if entry.file_name().into_string().unwrap() == year {
+                                    if let Ok(entries_months) = std::fs::read_dir(entry.path()) {
+                                        for entry_months in entries_months {
+                                            if let Ok(entry_months) = entry_months {
+                                                if entry_months.path().is_dir(){
+                                                    if entry_months.file_name().into_string().unwrap() == month {
+                                                        if let Ok(entries_days) = std::fs::read_dir(entry_months.path()) {
+                                                            for entry_day in entries_days {
+                                                                if let Ok(entry_day) = entry_day {
+                                                                    if entry_day.path().is_dir(){
+                                                                        result.push(entry_day.file_name().into_string().unwrap());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
 
 
+        result
+    }
+
+    fn get_day(year:String,month:String,day:String)->Vec<String>{
+        let mut result = vec![];
+        if let Ok(_) = year.parse::<i32>(){
+            if let Ok(_) = month.parse::<i32>(){
+                if let Ok(_) = day.parse::<i32>(){
+                    if let Ok(entries) = std::fs::read_dir(std::path::Path::new("./picture")) {
+                        for entry in entries {
+                            if let Ok(entry) = entry {
+                                if entry.path().is_dir(){
+                                    if entry.file_name().into_string().unwrap() == year {
+                                        if let Ok(entries_months) = std::fs::read_dir(entry.path()) {
+                                            for entry_months in entries_months {
+                                                if let Ok(entry_months) = entry_months {
+                                                    if entry_months.path().is_dir(){
+                                                        if entry_months.file_name().into_string().unwrap() == month {
+                                                            if let Ok(entries_days) = std::fs::read_dir(entry_months.path()) {
+                                                                for entry_day in entries_days {
+                                                                    if let Ok(entry_day) = entry_day {
+                                                                        if entry_day.path().is_dir(){
+                                                                            if entry_day.file_name().into_string().unwrap() == day {
+                                                                                if let Ok(entries_pic) = std::fs::read_dir(entry_day.path()) {
+                                                                                    for entry_pic in entries_pic {
+                                                                                        if let Ok(entry_pic) = entry_pic {
+                                                                                            if entry_pic.path().is_file(){
+                                                                                                result.push(entry_pic.file_name().into_string().unwrap());
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }}}
+
+
+        result
+    }
+
+    fn new()->Self{
+        let mut files_path:Vec<String> = vec![];
+        GeneralPhotoVideo::dir_files(std::path::Path::new("./picture"),&mut files_path);
+        let mut dirs: Vec<String> = vec![];
+        let mut year:String;
+        let mut month:String;
+        let mut day:String;
+        let mut file_name:String;
+        let mut result: HashMap<String, Years> = HashMap::new();
+
+        for f in files_path{
+            // skip "." and "picture"
+            dirs = f.split("/").skip(2).map(|e|String::from(e)).collect();
+            if dirs.len()!=4{continue;}
+            year = dirs[0].clone();
+            month = dirs[1].clone();
+            day = dirs[2].clone();
+            file_name = dirs[3].clone();
+            if !result.contains_key(&year){
+                let mut d = HashMap::new();
+                d.insert(day.clone(),Days{ day:day.clone(), files:vec![file_name.clone()]});
+                let mut m = HashMap::new();
+                m.insert(month.clone(),Months{month:month.clone(),days:d});
+                result.insert(year.clone(),Years{year:year.clone(), months:m});
+
+            }else{
+                for (key_y,y) in result.iter_mut() {
+                    if *key_y==year{
+                        if !y.months.contains_key(&month){
+                            let mut d = HashMap::new();
+                            d.insert(day.clone(),Days{ day:day.clone(), files:vec![file_name.clone()]});
+                            y.months.insert(month.clone(),Months{month:month.clone(),days:d});
+                        }else{
+                            for (key_m,m) in y.months.iter_mut() {
+                                if *key_m==month{
+                                    if !m.days.contains_key(&day){
+                                        m.days.insert(day.clone(),Days{ day:day.clone(), files:vec![file_name.clone()]});
+                                    }else{
+                                        for (key_d,d) in m.days.iter_mut() {
+                                            if *key_d==day{
+                                                d.files.push(file_name.clone());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        GeneralPhotoVideo{years:result}
+    }
+
+    fn dir_files(dir: &std::path::Path,result:&mut Vec<String>)-> std::io::Result<()>{
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    if entry.path().is_dir(){
+                        //println!("DIR {:?}",entry.path());
+                        GeneralPhotoVideo::dir_files(&entry.path(),result);
+                    }else{
+                        //println!("FILE {:?}",entry.path());
+                        result.push(entry.path().as_path().display().to_string());
+                    }
+                }
+            }
+            Ok(())
+        }else{
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
+        }
+    }
+}
+
+async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
+    // подготовка данных для страницы
+    // 1.список файлов wav
+    // 2.список фото и папок с сортировкой по дате (обьект)
+
+    // Фичи:
+    // 1.словарь слов и поиск по ним
+    // 2. передача параметров управления
+   unsafe{COUNTER=0;}
+
+    let gs = GeneralSound::new();
+    let gs_data:serde_json::Value = serde_json::to_value(gs).unwrap();
+
+    let gpv = GeneralPhotoVideo::new();
+    //let data:String = serde_json::to_string(&gp).unwrap();
+    let gpv_data:serde_json::Value = serde_json::to_value(gpv).unwrap();
+    let data = json!({
+        "years":gpv_data,
+        "sounds": gs_data
+    });
+    /*let data2 = json!({
+        "ttt": data
+    });*/
+    let body = hb.render("index", &data).unwrap();
+
+    HttpResponse::Ok().body(body)
+}
+
+/*
+fn rec(dir: &std::path::Path,mut year:String,mut month:String,mut day:String,result:&mut Vec<Years>)-> std::io::Result<()>{
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+
+                if entry.path().is_dir(){
+                    println!("DIR {:?}",entry.path());
+                    let temp:String = entry.file_name().into_string().unwrap();
+
+                    if(year.len() == 0 || year!=temp){
+                        year = temp.clone();
+                        result.push(Years{year:year.clone(),months:vec![]});
+                    }else if month.len() == 0 {
+                        month = entry.file_name().into_string().unwrap();
+                        for y in result.iter_mut() {
+                            if *y.year == year {
+                                y.months.push(Months{month: month.clone(),days:vec![]});
+                                break;
+                            }
+                        }
+                    }else if day.len() == 0 {
+                        day = entry.file_name().into_string().unwrap();
+                        for  y in result.iter_mut() {
+                            if *y.year == year {
+                                for m in y.months.iter_mut() {
+                                    if *m.month == month {
+                                        m.days.push(Days{day:day.clone(),files:vec![]});
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    rec(&entry.path(),year.clone(),month.clone(),day.clone(),result);
+                }else{
+                    println!("FILE {:?}",entry.path());
+                    for  y in result.iter_mut() {
+                        if *y.year == year {
+                            for m in y.months.iter_mut() {
+                                if *m.month == month {
+                                    for  d in m.days.iter_mut() {
+                                        if *d.day == day {
+                                            d.files.push(entry.file_name().into_string().unwrap());
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }else{
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
+    }
+}
+*/
 
 // ifconfig => http://192.168.0.106
 // cargo run --example server-json
 // ps -A | grep server-json // sudo kill <NUMBER>
+// ngrok http 4000 --authtoken 1okjXfwKGugN4HzH0fsrBFRpynN_7E3F3A4SnMUe**** -host-header=rewrite
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
      //create_wav("sound/2021-04-20-17-26-08.txt");
@@ -404,6 +983,20 @@ println!("{}",v);
 
 
     return Ok(());*/
+    //let mut result:Vec<Years> = vec![];
+    //rec(std::path::Path::new("./picture"),"".to_string(),"".to_string(),"".to_string(),&mut result);
+
+
+/*
+    let gp = GeneralPhotoVideo::new();
+    //let string_point:String = serde_json::to_string(&gp).unwrap();
+    let data:serde_json::Value = serde_json::to_value(gp).unwrap();
+
+    let data2 = json!({
+        "ttt": data
+    });
+     println!("{}",data2);
+    return Ok(());*/
 
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
@@ -412,8 +1005,21 @@ println!("{}",v);
     std::fs::create_dir_all("./picture").unwrap();
     let data = web::Data::new(Mutex::new(Vec::<u8>::new()));
 
+    let mut handlebars = Handlebars::new();
+    handlebars.register_helper("new_tr_helper", Box::new(new_tr_helper));
+    handlebars
+        .register_templates_directory(".html", "./static/templates")
+        .unwrap();
+    let handlebars_ref = web::Data::new(handlebars);
+
     HttpServer::new(move || {
-        App::new().app_data( data.clone())
+        App::new()
+            .wrap(
+                middleware::DefaultHeaders::new()
+                    .header("Access-Control-Allow-Origin", "*"))
+            .wrap(error_handlers())
+            .app_data( data.clone())
+            .app_data( handlebars_ref.clone())
             // enable logger
             .wrap(middleware::Logger::new("---------------------------\n"))
             .wrap(middleware::Logger::default())
@@ -439,7 +1045,7 @@ println!("{}",v);
                     )
             )*/
             .service(
-                web::resource("/index")
+                web::resource("/")
                     .route(web::get().to(index))
             )
             .service(web::resource("/sound")
@@ -451,6 +1057,31 @@ println!("{}",v);
             .service(web::resource("/log")
                 .route(web::post().to(log))
             )
+            .service(web::resource("/get_years_picture")
+                .route(web::post().to(get_years_picture))
+            )
+            .service(web::resource("/get_months_picture")
+                .route(web::post().to(get_months_picture))
+            )
+            .service(web::resource("/get_days_picture")
+                .route(web::post().to(get_days_picture))
+            )
+            .service(web::resource("/get_day_picture")
+                .route(web::post().to(get_day_picture))
+            )
+            .service(web::resource("/get_last_picture")
+                .route(web::post().to(get_last_picture))
+            )
+            .service(web::resource("/delete_picture")
+                .route(web::post().to(delete_picture))
+            )
+            .service(web::resource("/delete_sound")
+                .route(web::post().to(delete_sound))
+            )
+            .service(web::resource("/get_sounds")
+                .route(web::post().to(get_sounds))
+            )
+
             /* .service(web::resource("/send_sound")
                  .route(web::get().to(send_sound))
              )*/
@@ -459,6 +1090,21 @@ println!("{}",v);
             )
             .service( fs::Files::new("/sound", "./sound"))
 
+            .service(
+                fs::Files::new("/public", "./public")
+                    .show_files_listing()
+                    .use_last_modified(true),
+            )
+            .service(
+                 fs::Files::new("/picture", "./picture")
+                    .show_files_listing()
+                    .use_last_modified(true),
+            )
+            .service(
+                fs::Files::new("/wav", "./wav")
+                    .show_files_listing()
+                    .use_last_modified(true),
+            )
 
     })
         .bind("0.0.0.0:4000")?
@@ -466,6 +1112,53 @@ println!("{}",v);
         .await
 }
 
+
+// Custom error handlers, to return HTML responses when an error occurs.
+fn error_handlers() -> ErrorHandlers<Body> {
+    ErrorHandlers::new().handler(StatusCode::NOT_FOUND, not_found)
+}
+
+// Error handler for a 404 Page not found error.
+fn not_found<B>(res: ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
+    let response = get_error_response(&res, "Page not found");
+    Ok(ErrorHandlerResponse::Response(
+        res.into_response(response.into_body()),
+    ))
+}
+
+// Generic error handler.
+fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> Response<Body> {
+    let request = res.request();
+
+    // Provide a fallback to a simple plain text response in case an error occurs during the
+    // rendering of the error page.
+    let fallback = |e: &str| {
+        Response::build(res.status())
+            .content_type("text/plain")
+            .body(e.to_string())
+    };
+
+    let hb = request
+        .app_data::<web::Data<Handlebars>>()
+        .map(|t| t.get_ref());
+    match hb {
+        Some(hb) => {
+            let data = json!({
+                "error": error,
+                "status_code": res.status().as_str()
+            });
+            let body = hb.render("error", &data);
+
+            match body {
+                Ok(body) => Response::build(res.status())
+                    .content_type("text/html")
+                    .body(body),
+                Err(_) => fallback(error),
+            }
+        }
+        None => fallback(error),
+    }
+}
 
 fn test<P: AsRef<Path> + std::fmt::Debug>(path_in:P) {
 

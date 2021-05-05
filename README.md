@@ -44,5 +44,5 @@
  motor_command = 3, // разворот влево
  motor_command = 4, // разворот вправо
  motor_command = 5, // разворот на 180 градусов
- motor_command = 6  //  auto control
+ motor_command = 6  // стоп
 ```

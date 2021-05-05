@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>App Name - Page Title</title>
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css"> -->
+    <link rel="stylesheet" href="public/bulma/css/bulma.min.css">
+    <link href="/public/fontawesome/css/all.css" rel="stylesheet">
+    <script src="/public/jquery-3.6.0.min.js"></script>
+
+</head>
+<body>
+<div class="container.is-max-widescreen has-background-dark">
+    <div class="columns">
+        <div class="column is-one-third">
+            <div class="block">
+                <!-- Управление -->
+                <div class="table-container">
+                    <table class="table  is-striped has-text-centered">
+                        <tbody>
+                        <tr class="has-background-dark">
+                            <td>
+                                <button id="control-180" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                      <span class="icon has-text-danger">
+                                        <i class="fas fa-2x fa-sync"></i>
+                                      </span>
+                                    </div>
+                                </button>
+                            </td>
+                            <td class="has-background-success-dark">
+                                <button id="control-up" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                      <span class="icon has-text-danger">
+                                        <i class="fas fa-2x fa-arrow-circle-up"></i>
+                                      </span>
+                                    </div>
+                                </button>
+                            </td>
+                            <td></td>
+                        </tr>
+                        <tr class="has-background-dark">
+                            <td class="has-background-success-dark">
+                                <button id="control-left" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                      <span class="icon has-text-danger">
+                                        <i class="fas fa-2x fa-arrow-circle-left"></i>
+                                      </span>
+                                    </div>
+                                </button>
+                            </td>
+                            <td class="has-background-success-dark">
+                                <button id="control-auto" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                          <span class="icon has-text-danger">
+                                           <i class="fas fa-2x fa-robot"></i>
+                                          </span>
+                                    </div>
+                                </button>
+                            </td>
+                            <td class="has-background-success-dark">
+                                <button id="control-right" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                          <span class="icon has-text-danger">
+                                            <i class="fas fa-2x fa-arrow-circle-right"></i>
+                                          </span>
+                                    </div>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="has-background-dark">
+                            <td></td>
+                            <td class="has-background-success-dark">
+                                <button id="control-down" class="button is-large is-dark is-fullwidth has-text-warning-dark">
+                                    <div class="icon-text">
+                                          <span class="icon has-text-danger">
+                                            <i class="fas fa-2x fa-arrow-circle-down"></i>
+                                          </span>
+                                    </div>
+                                </button>
+                            </td>
+                            <td></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- ---------------------------------------------------------------------------------- -->
+            <div class="block">
+                <!-- Запись звука -->
+                <div class="table-container" style="max-height: 1500px;overflow-y: scroll">
+                    <table class="table is-bordered is-striped has-text-centered has-text-warning-dark">
+                        <tbody id="general_sound_tbody">
+                        <tr class="has-background-success-dark">
+                            <td colspan="3">
+                                <button id="general_sound_btn_rec" class="button is-large is-light is-danger is-outlined is-fullwidth disabled">Sound Rec</button>
+                            </td>
+                        </tr>
+                        {{#if sounds.sounds}}
+                            {{#each sounds.sounds as |sound|}}
+                                <tr class="has-background-success-dark">
+                                    <td>{{sound}}</td>
+                                    <td>
+                                        <audio controls>
+                                            <source src="wav/{{sound}}" type="audio/wav">
+                                            Тег audio не поддерживается вашим браузером.
+                                            <a href="wav/2021-04-24-19-35-35.wav">Скачайте музыку</a>.
+                                        </audio>
+                                    </td>
+                                    <td>
+                                        <div class="icon-text">
+                                              <span class="icon has-text-danger">
+                                               <i class="fas fa-2x fa-trash-alt" onclick=delete_sound("{{sound}}")></i>
+                                              </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {{/each}}
+                        {{/if}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- ---------------------------------------------------------------------------------- -->
+        <div class="column is-half">
+            <div class="block">
+                <!-- Фото / видео -->
+                <div class="card">
+                    <div class="card-image">
+                        <figure class="image is-boxed">
+                             <img id="general-content" src="https://bulma.io/images/placeholders/256x256.png">
+                            <!-- <img id="stream" src="http://192.168.0.105:81/stream">-->
+                         </figure>
+                     </div>
+                 </div>
+
+
+                 <div class="tabs is-toggle">
+                     <ul>
+                         <li >
+                             <!--<a class="has-background-success-dark">
+                                 <span class="icon is-small"><i class="fas fa-image" aria-hidden="true"></i></span>
+                                 <span class="has-text-warning-dark">Pictures</span>
+                             </a>-->
+                            <a id="general-photo" class="has-background-success-dark">
+                                <span class="icon-text">
+                                      <span class="icon has-text-danger">
+                                         <i class="fas fa-2x fa-camera"></i>
+                                      </span>
+                                 </span>
+                            </a>
+
+                        </li>
+                        <li>
+                            <a id="general-video" class="has-background-success-dark">
+                                <span class="icon-text">
+                                          <span class="icon has-text-danger">
+                                              <i class="fas fa-2x fa-video"></i>
+                                          </span>
+                                </span>
+                            </a>
+                            <!-- <a class="has-background-success-dark">
+                                 <span class="icon is-small"><i class="fas fa-film" aria-hidden="true"></i></span>
+                                 <span class="has-text-warning-dark">Videos</span>
+                             </a> -->
+                        </li>
+
+                    </ul>
+                </div>
+            </div>
+            <!-- ---------------------------------------------------------------------------------- -->
+
+
+            <div class="block">
+                <!-- История фото/видео -->
+                <div class="table-container" style="max-height: 1500px;overflow-y: scroll">
+                    <table class="table is-striped has-text-centered has-background-success-dark">
+                        <thead>
+                        <tr>
+                            <td colspan="7">
+                                <nav class="breadcrumb" aria-label="breadcrumbs">
+                                    <ul id="photovideo_breadcrumb">
+                                        <li>
+                                            <a id="photovideo_folders" class="has-text-warning-dark" > <i class="fas fa-2x fa-folder-open"></i></a>
+                                        </li>
+                                        <!--<li><a class="has-text-warning-dark" href="#">2021</a></li>
+                                        <li><a class="has-text-warning-dark" href="#">04</a></li>
+                                        <li class="is-active"><a  class="has-text-warning-dark" href="#" aria-current="page">28</a></li>-->
+                                    </ul>
+                                </nav>
+                            </td>
+                        </tr>
+                        </thead>
+
+                        <tbody id="photovideo_tbody">
+
+
+                        {{#if years.years}}
+                        <tr class="has-background-success-dark">
+
+                            {{#each years.years as |m year|}}
+                            {{#each m.months as |d month|}}
+                            {{#each d.days as |files day|}}
+                            {{#each files.files as |file_name|}}
+                              {{#if (new_tr_helper max_elem=7)}}
+                                    <td>
+                                        <div class="card">
+                                            <div class="card-image">
+                                                <figure class="image is-96x96">
+                                                    <img src="/picture/{{year}}/{{month}}/{{day}}/{{file_name}}" alt="Placeholder image" onclick=show_picture(this)>
+                                                    <!--<img src="/picture/folder.png" alt="Placeholder image">-->
+                                                </figure>
+                                            </div>
+                                            <div class="content">
+                                                <time datetime="{{year}}-{{month}}-{{day}}" class="has-text-warning-dark"><br>{{year}}/{{month}}/{{day}}<br>{{file_name}} </time>
+                                                <a class="tag is-delete"  onclick=delete_picture('{{year}}','{{month}}','{{day}}','{{file_name}}')></a>
+                                            </div>
+                                        </div>
+                                    </td>
+                              {{else}}
+                                </tr>
+                                <tr class="has-background-success-dark">
+                                    <td>
+                                        <div class="card">
+                                            <div class="card-image">
+                                                <figure class="image is-96x96">
+                                                    <img src="/picture/{{year}}/{{month}}/{{day}}/{{file_name}}" alt="Placeholder image" onclick=show_picture(this)>
+                                                </figure>
+                                            </div>
+                                            <div class="content">
+                                                <time datetime="{{year}}-{{month}}-{{day}}" class="has-text-warning-dark"><br>{{year}}/{{month}}/{{day}}<br>{{file_name}} </time>
+                                                <a class="tag is-delete" onclick=delete_picture('{{year}}','{{month}}','{{day}}','{{file_name}}')></a>
+                                            </div>
+                                        </div>
+                                    </td>
+                               {{/if}}
+
+                            {{/each}}
+                            {{/each}}
+                            {{/each}}
+                            {{/each}}
+                        </tr>
+                        {{/if}}
+
+                        </tbody>
+                    </table>
+                </div>
+
+
+            </div>
+
+
+
+            <!-- ---------------------------------------------------------------------------------- -->
+            <div class="block" >
+                <!-- Поиск слов для воспроизведения звука -->
+
+
+                <article class="panel is-link has-background-success-dark">
+                    <p class="panel-heading has-text-warning-dark has-background-success-dark">Broadcast</p>
+
+                    <div class="panel-block">
+                        <p class="control has-icons-left">
+                            <input id="general_broadcast_search" class="input is-link has-text-warning-dark" type="text" value="" placeholder="Search">
+                            <span class="icon is-left"><i class="fas fa-search" aria-hidden="true"></i></span>
+                        </p>
+                    </div>
+
+                    <div id="general_broadcast_content">
+
+                    </div>
+
+
+                    <div class="panel-block">
+                        <button id="general_broadcast_btn_say" class="button is-link is-outlined is-fullwidth disabled has-text-warning-dark">
+                            Say
+                        </button>
+                    </div>
+                </article>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+</body>
+<style>
+    .card{
+        text-align: center;
+    }
+</style>
+<script src="/public/robart.js"></script>
+</html>
