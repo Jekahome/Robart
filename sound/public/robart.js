@@ -5,7 +5,7 @@ var generalSound = null;
 var generalBroadcast = null;
 const URL_ESP32CAM_COMMAND = "http://192.168.0.105:80/command";
 const URL_ESP32CAM_STREAM = "http://192.168.0.105:81/stream";
-const URL_ESP8266_COMMAND = "http://192.168.0.104:80/command";
+const URL_ESP8266_COMMAND = "http://192.168.0.102:80/command";
 const URL_SELF_SERVER = "http://127.0.0.1:4000";
 
 
@@ -474,16 +474,16 @@ class GeneralSound{
             dataType: 'JSON',
             data: data,
             type: 'POST',
-            /* headers: {
-                 "Access-Control-Allow-Origin": "http://127.0.0.1:4000/"
-             },*/
+             headers: {
+                 "Access-Control-Allow-Origin": "*"
+             },
             success: function (data) {
-                //console.log('success:',data);
+                console.log('success:',data);
 
                 generalSound.get_sounds();
             },
             error: function(event){
-                // console.error('error:',event);
+                 console.error('error:',event);
                 generalSound.get_sounds();
             }
         });

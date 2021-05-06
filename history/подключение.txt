@@ -1,0 +1,114 @@
+Настройка платы ESP32-CAM:
+
+Для загрузки кода:
+- ESP32-CAM пин 100 и GND соединены
+- ESP32-CAM пин UOR  => UART пин TxD
+- ESP32-CAM пин UOT  => UART пин RxD
+- ESP32-CAM пин GND => UART пин GND
+- ESP32-CAM пин 5V => UART пин 5V
+
+Arduino IDE:
+Плата: ESP32 Arduino (in sketchbook)/ ESP32 Wrover Module
+Upload Speed: 115200
+Flash Frequency: 80MHz
+Flash Mode: Q10
+Partition Scheme: Huge APP (3MB No OTA/1MB SPIFFS)
+
+Для запуска:
+- перегрузить плату и разорвать контакт  ESP32-CAM пин 100 с GND
+- подключить питание 5v от внешнего источника
+- подключить atmega328
+
+Внешний IP для взаимодействия
+    http://192.168.0.106:4000/sound
+    http://192.168.0.106:4000/picture
+
+    ngrok http http://webnginx.net:4000
+
+/home/jeka/projects/project_rust/image
+cargo run --example server-json
+/home/jeka/projects/project_rust/image/examples/imageproc/server/json.rs
+
+
+--------------------------------------------------------------------------------
+Подключение платы Arduino UNO
+
+Код /home/jeka/Arduino/my/ROBOT/four_motor
+
+Код /home/jeka/Arduino/my/ESP_32_CAM/Web/CameraWebServer
+
+1.(бутерброд) Arduino UNo подключается к модулю зярядного устройства Diy Kit Electronic PCB Board Module ,
+   а сам модуль зярядного к  Плате расширения пинов UNO Sensor Shield v5
+
+2.Подключение платы расширения пинов  UNO Sensor Shield v5 к остальной перефирии
+
+2.1 Колеса (движение)
+          Драйвер L298N встроенный стабилизатор напряжения на 5 Вольт (78M05) отключен (снята перемычка)
+          Драйвер L298N::Вывод GDN =>  UNO Sensor Shield v5::Digital IO Ports GND
+          Драйвер L298N::Вывод GDN => 9V -
+          Драйвер L298N::Вывод 5V => UNO Sensor Shield v5::Digital IO Ports 5V
+          Драйвер L298N::Вывод VCC => 9v +
+
+          Драйвер L298N::Перемычка ENA => UNO Sensor Shield v5::Digital IO Ports D3
+          Драйвер L298N::Вывод IN1 => UNO Sensor Shield v5::Digital IO Ports D4
+          Драйвер L298N::Вывод IN2 => UNO Sensor Shield v5::Digital IO Ports D7
+          Драйвер L298N::Вывод IN3 => UNO Sensor Shield v5::Digital IO Ports D8
+          Драйвер L298N::Вывод IN4 => UNO Sensor Shield v5::Digital IO Ports D13
+          Драйвер L298N::Перемычка ENB => UNO Sensor Shield v5::Digital IO Ports D5
+
+          Драйвер L298N::Выходы OUT1 и OUT2 => Левая сторона двигателей (мост)
+          Драйвер L298N::Выходы OUT3 и OUT4 => Правая сторона двигателей (мост)
+
+2.2 Датчик растояния (глаза)
+          Серво двигатель SG90 (GDN,5V,логический pin) => UNO Sensor Shield v5::Digital IO Ports D11
+
+          Ультразвуковой датчика преграды HC–SR04 закреплен на серво двигателе
+          Ультразвуковой датчика преграды HC–SR04:VCC => UNO Sensor Shield v5::Digital IO Ports 5V
+          Ультразвуковой датчика преграды HC–SR04:Trig => UNO Sensor Shield v5::Digital IO Ports D10
+          Ультразвуковой датчика преграды HC–SR04:Echo => через резистор на 2.2 кОм к HC–SR04:Trig
+          Ультразвуковой датчика преграды HC–SR04:GND => UNO Sensor Shield v5::Digital IO Ports GND
+
+2.3 MP3 player (звук)
+
+         DFPlayer Mini MP3 Player:GND => UNO Sensor Shield v5::Analog IO Ports GND
+         DFPlayer Mini MP3 Player:RX через 1kOm => UNO Sensor Shield v5::Analog IO Ports A5
+         DFPlayer Mini MP3 Player:TX через 1kOm => UNO Sensor Shield v5::Analog IO Ports A4
+         DFPlayer Mini MP3 Player:VCC => UNO Sensor Shield v5::Analog IO Ports  5V
+
+         DFPlayer Mini MP3 Player:SPK_1 => Динамик левый выход (4 Om 3 W)
+         DFPlayer Mini MP3 Player:SPK_2 => Динамик правый выход (4 Om 3 W)
+
+
+3.Подключение Arduino UNO к ESP32-CAM
+
+        ESP32-CAM пин UOR  => UNO Sensor Shield v5::COM TX
+        ESP32-CAM пин UOT  => UNO Sensor Shield v5::COM RX
+        ESP32-CAM пин GND => UNO Sensor Shield v5::COM -
+       (Обмен сообщениями через serializeJson и без лишних Serial.print)
+-------------------------------------------------------------------------------------
+Настройка платы Wemos D1 esp8266
+
+Для загрузки кода :
+плата LOLIN(WEMOS) D1 R2 & mini
+pin D10/SS должен быть свободен
+
+Подключение MAX9814 (слух)
+         MAX9814:GDN => Wemos D1 esp8266:GDN
+         MAX9814:VCC через католитический конденсатор - =>  католитический конденсатор + Wemos D1 esp8266 5V
+         MAX9814:OUT => Wemos D1 esp8266:A0
+
+Подключение SDHC
+
+SDHC CS  => Wemos D1 esp8266:D10/SS
+SDHC SCK  => Wemos D1 esp8266:D13/SCK
+SDHC MOSI => Wemos D1 esp8266:D11/MOSI
+SDHC MISO  => Wemos D1 esp8266:D12/MISO
+SDHC VCC  => Wemos D1 esp8266: 5V
+SDHC GND => Wemos D1 esp8266:GND
+-------------------------------------------------------------------------------------
+
+Тест RX->TX связи
+
+{""command"":12,""type"":""atmega328"",""msg"":""message"",""data_int"":[4,5]}
+
+{""command"":6,""mp3"":[3156,1370,16],""delay_sound"":2000}

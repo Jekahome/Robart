@@ -512,7 +512,7 @@ async fn save_picture(mut payload: Multipart,req: HttpRequest) -> Result<HttpRes
 }
 
 
-// curl -F 'file=@/home/jeka/projects/atmega328_esp32/sound/sound/test.txt' -H  'Content-Type: multipart/form-data' -H 'Content-Length: 4096' -H 'Content-Disposition: attachment; filename="test.txt"'  http://192.168.0.106:4000/sound
+// curl -F 'file=@/home/jeka/projects/atmega328_esp32/sound/sound/2021-05-6-10-54-05.txt' -H  'Content-Type: multipart/form-data' -H 'Content-Length: 4096' -H 'Content-Disposition: attachment; filename="2021-05-6-10-54-05.txt"'  http://192.168.0.106:4000/sound
 async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpResponse, Error> {
 
     println!("---------------");
@@ -527,6 +527,7 @@ async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpRespon
     // println!("bytes={:#?}", pl.0);
 
     let (filepath,file_out) = GeneralSound::get_new_filename();
+    let file_in = filepath.clone();
     if let Ok(Some(mut field)) = payload.try_next().await {
         println!("save_file_test while");
         //let content_type = field.content_disposition().unwrap();
@@ -535,7 +536,7 @@ async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpRespon
 
         // let filepath = format!("./sound/{}", sanitize_filename::sanitize(&filename));
         // File::create is blocking operation, use threadpool
-        let mut f = web::block(|| std::fs::File::create(filepath))
+        let mut f = web::block( || std::fs::File::create(filepath))
             .await
             .unwrap();
         let mut chank_count:i32=0;
@@ -555,7 +556,7 @@ async fn save_file(mut payload: Multipart,req: HttpRequest) -> Result<HttpRespon
             }
 
         }
-        create_wav(file_out);
+        create_wav(file_in,file_out);
     }
 
     println!("save_file_test exit");
@@ -585,8 +586,8 @@ struct GeneralSound{
 impl GeneralSound{
     fn get_new_filename()->(String,String){
         let utc: DateTime<Utc> = Utc::now();
-        (format!("./sound/{}.txt", utc.format("%Y-%m-%e-%H-%M-%S").to_string()).to_string(),
-         format!("./wav/{}.wav", utc.format("%Y-%m-%e-%H-%M-%S").to_string()).to_string())
+        (format!("./sound/{}.txt", utc.format("%Y-%m-%d-%H-%M-%S").to_string()).to_string(),
+         format!("./wav/{}.wav", utc.format("%Y-%m-%d-%H-%M-%S").to_string()).to_string())
     }
 
     fn delete_sound(sound:String)->Option<()>{
@@ -965,6 +966,9 @@ fn rec(dir: &std::path::Path,mut year:String,mut month:String,mut day:String,res
 }
 */
 
+
+
+
 // ifconfig => http://192.168.0.106
 // cargo run --example server-json
 // ps -A | grep server-json // sudo kill <NUMBER>
@@ -1082,9 +1086,7 @@ println!("{}",v);
                 .route(web::post().to(get_sounds))
             )
 
-            /* .service(web::resource("/send_sound")
-                 .route(web::get().to(send_sound))
-             )*/
+
             .service(web::resource("/post_sound")
                 .route(web::post().to(post_sound))
             )
