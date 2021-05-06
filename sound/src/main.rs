@@ -968,10 +968,8 @@ fn rec(dir: &std::path::Path,mut year:String,mut month:String,mut day:String,res
 
 
 
+// lsof -n -i4TCP:4000 | grep LISTEN | tr -s ' ' | cut -f 2 -d ' ' | xargs kill -9
 
-// ifconfig => http://192.168.0.106
-// cargo run --example server-json
-// ps -A | grep server-json // sudo kill <NUMBER>
 // ngrok http 4000 --authtoken 1okjXfwKGugN4HzH0fsrBFRpynN_7E3F3A4SnMUe**** -host-header=rewrite
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
